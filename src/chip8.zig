@@ -44,6 +44,8 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // Emulater specific
         rng: std.rand.DefaultPrng,
         opcode: u16,
+        /// Set to true when the frame whould be redrawn
+        drawFlag: bool,
 
         const Self = @This();
 
@@ -65,6 +67,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
 
                 .rng = std.rand.DefaultPrng.init(@bitCast(u64, std.time.timestamp())),
                 .opcode = 0,
+                .drawFlag = true,
             };
 
             // (@ptrCast([*]u8, chip8.memory) + @intCast(usize, FONTSET_START)) = .{
@@ -301,6 +304,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         /// DRW: Vx, Vy, nibble
         /// Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
         fn op_Dxyn(self: *Self) void {
+            self.drawFlag = true;
             const _x = self.Vx();
             const _y = self.Vy();
             const height = self.opcode & 0x000F; // amount of bytes to read

@@ -44,7 +44,10 @@ pub fn Emulator(comptime RenderType: type, comptime CHIP8Type: type, comptime Di
                     self.timer.reset();
 
                     self.chip8.cycle();
-                    try self.platform.renderBuffer(self.platform.platform, &self.chip8.displayMemory);
+                    if (self.chip8.drawFlag) {
+                        try self.platform.renderBuffer(self.platform.platform, &self.chip8.displayMemory);
+                        self.chip8.drawFlag = false;
+                    }
                 }
             }
         }
