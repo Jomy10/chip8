@@ -20,8 +20,6 @@ const KeyboardLayout = enum(u8) {
     AZERTY,
 };
 
-var a = false;
-
 pub const TerminalPlatform = struct {
     stdout: std.io.BufferedWriter(4096, @TypeOf(std.io.getStdOut().writer())),
     terminal: Term,
@@ -66,10 +64,6 @@ pub const TerminalPlatform = struct {
             return false;
         }
 
-        if (buf[0] == 'a') {
-            a = true;
-        }
-
         inline for (self.kbMap) |char, i| {
             if (char == buf[0]) {
                 keypad[i] = true;
@@ -85,7 +79,7 @@ pub const TerminalPlatform = struct {
     }
 
     fn inputLayout(kbLayout: KeyboardLayout) [4 * 4]u8 {
-        return comptime switch (kbLayout) {
+        return switch (kbLayout) {
             // zig fmt: off
             .QWERTY => .{
                 '1', '2', '3', '4',
@@ -107,15 +101,13 @@ pub const TerminalPlatform = struct {
         // try ansi.resetCursor(&self.stdout);
         var x: i32 = 0;
         var y: i32 = 0;
-        if (a) std.debug.print("{any}\n", .{buffer});
         for (buffer) |pixel| {
             // std.debug.print("Pixel: ({}, {}) = {}\n", .{x, y, pixel});
-            // if (x == 0) {
+            if (x == 0) {
                 try ansi.setCursor(&self.stdout, y, x, &self.fmtBuf); // catch return PlatformError.RenderingFailed;
-            // }
+            }
 
             switch (pixel) {
-                // 0 => _ = try self.stdout.write("_"),
                 0 => _ = try self.stdout.write(" "),
                 1 => _ = try self.stdout.write("#"),
             }

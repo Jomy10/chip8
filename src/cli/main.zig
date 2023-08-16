@@ -3,18 +3,23 @@ const fs = std.fs;
 const exit = std.os.exit;
 const Allocator = std.mem.Allocator;
 
-const CHIP8 = @import("chip8.zig").CHIP8;
-const platform_pkg = @import("platform.zig");
-const Platform = platform_pkg.Platform;
-const Emulator = @import("emulator.zig").Emulator;
+// const CHIP8 = @import("chip8").CHIP8;
+// const platform_pkg = @import("platform.zig");
+// const Platform = platform_pkg.Platform;
+// const Emulator = @import("emulator.zig").Emulator;
+// const cli = @import("cli.zig");
+const chip8_pkg = @import("chip8");
+const CHIP8 = chip8_pkg.chip8.CHIP8;
+const Platform = chip8_pkg.platform.Platform;
+const Emulator = chip8_pkg.emulator.Emulator;
 const cli = @import("cli.zig");
 
-const PlatformType = platform_pkg.PlatformType;
-const PlatformOptType = platform_pkg.PlatformOptType;
-const getPlatformOptions = platform_pkg.getPlatformOptions;
-const DisplayBufferType = platform_pkg.DisplayBufferType;
-const DISPLAY_BUFFER_ON = platform_pkg.DISPLAY_BUFFER_ON;
-const DISPLAY_BUFFER_OFF = platform_pkg.DISPLAY_BUFFER_OFF;
+const PlatformType = chip8_pkg.platform.PlatformType;
+const PlatformOptType = chip8_pkg.platform.PlatformOptType;
+const getPlatformOptions = chip8_pkg.platform.getPlatformOptions;
+const DisplayBufferType = chip8_pkg.platform.DisplayBufferType;
+const DISPLAY_BUFFER_ON = chip8_pkg.platform.DISPLAY_BUFFER_ON;
+const DISPLAY_BUFFER_OFF = chip8_pkg.platform.DISPLAY_BUFFER_OFF;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -28,6 +33,8 @@ pub fn main() !void {
         try cli.printHelp(args[0]);
         exit(1);
     }
+
+    // TODO: argument parser: -kbl=AZERTY and -kbl=QWERTY (if platform == terminal)
 
     const romFile: []const u8 = args[1];
     const videoScale: u32 = try std.fmt.parseInt(u32, args[2], 10);

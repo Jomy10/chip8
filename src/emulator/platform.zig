@@ -35,6 +35,10 @@ pub fn Platform(comptime T: type, comptime _DisplayBufferType: type) type {
     };
 }
 
+//===============
+// build options
+//===============
+
 const build_options = @import("build_options");
 const opt_platform: ?[]const u8 = build_options.platform;
 
