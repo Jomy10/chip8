@@ -1,8 +1,9 @@
 const std = @import("std");
-const fs = std.fs;
 const constants = @import("constants.zig");
 
-const debugops = @import("build_options").debugops;
+const build_options = @import("build_options");
+
+const debugops = build_options.debugops;
 
 const uptr = u16;
 
@@ -16,8 +17,24 @@ const DISPLAY_MEM_SIZE = constants.DISPLAY_MEM_SIZE;
 const SPRITE_WIDTH = constants.SPRITE_WIDTH;
 const KEY_COUNT = constants.KEY_COUNT;
 
+// const timestamp = if (build_options.exe_build_type == .web)
+//     @import("platforms/web/timer.zig").timestamp
+// else
+//     std.time.timestamp;
+
+pub const KeyPress = enum(u2) {
+    pressedThisFrame = 2,
+    pressedPrevFrame = 1,
+    unpressed = 0,
+};
+
 /// spec: https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwig2tfivtyAAxWB2AIHHfhiC1AQFnoECBkQAw&url=http%3A%2F%2Fwww.cs.columbia.edu%2F~sedwards%2Fclasses%2F2016%2F4840-spring%2Fdesigns%2FChip8.pdf&usg=AOvVaw0xHA18fGOVun0XbjJEP6ia&opi=89978449
 pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, comptime off: DisplayBufferType) type {
+    comptime var DirType: type = undefined;
+    comptime if (build_options.exe_build_type != .web) {
+        DirType = std.fs.Dir;
+    };
+
     return struct {
         /// address space from 0x000 to 0xFFF
         /// 0x000-0x1FF: reserved for CHIP-8 interpreter
@@ -38,11 +55,11 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // decrements at a rate of 60Hz, until it reaches zero, playing a buzz when non-zero
         soundTimer: u8,
         // 16 input keys 0 through F
-        keypad: [KEY_COUNT]bool,
-        displayMemory: [DISPLAY_MEM_SIZE]DisplayBufferType,
+        keypad: [KEY_COUNT]KeyPress,
+        displayMemory: std.PackedIntArray(DisplayBufferType, DISPLAY_MEM_SIZE), //[DISPLAY_MEM_SIZE]DisplayBufferType,
 
         // Emulater specific
-        rng: std.rand.DefaultPrng,
+        rng: if (build_options.exe_build_type == .web) void else std.rand.DefaultPrng,
         opcode: u16,
         /// Set to true when the frame whould be redrawn
         drawFlag: bool,
@@ -50,9 +67,9 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         const Self = @This();
 
         pub fn init() Self {
-            std.debug.print("{}\n", .{@sizeOf(DisplayBufferType)});
             // zig fmt: off
-            var chip8 = Self{
+
+           var chip8 = Self{
                 .memory = undefined,
                 .registers = std.mem.zeroes([16]u8),
                 .indexRegister = 0,
@@ -62,17 +79,18 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
                 .sp = 0,
                 .delayTimer = 0,
                 .soundTimer = 0,
-                .keypad = std.mem.zeroes([16]bool),
-                .displayMemory = std.mem.zeroes([DISPLAY_MEM_SIZE]DisplayBufferType),
+                .keypad = std.mem.zeroes([16]KeyPress),
+                .displayMemory = std.mem.zeroes(std.PackedIntArray(DisplayBufferType, DISPLAY_MEM_SIZE)),
 
-                .rng = std.rand.DefaultPrng.init(@bitCast(u64, std.time.timestamp())),
+                .rng = if (build_options.exe_build_type == .web) undefined else std.rand.DefaultPrng.init(@bitCast(u64, std.time.timestamp())),
                 .opcode = 0,
                 .drawFlag = true,
             };
 
             // (@ptrCast([*]u8, chip8.memory) + @intCast(usize, FONTSET_START)) = .{
             var memSlice: []u8 = chip8.memory[FONTSET_START..FONTSET_START+FONTSET_SIZE];
-        
+
+       
             // (&chip8.memory[0..].ptr + @intCast(usize, FONTSET_START)) = .{
             comptime var i = 0;
             const font: [FONTSET_SIZE]u8 = .{
@@ -96,24 +114,39 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             inline while (i < FONTSET_START) : (i += 1) {
                 memSlice[i] = font[i];
             }
-        
+
             return chip8;
         }
-        pub fn loadROM(self: *Self, dir: fs.Dir, filename: []const u8) !void {
-            var file: fs.File = try dir.openFile(filename, .{.mode = .read_only});
-            defer file.close();
 
-            var bufReader = std.io.bufferedReader(file.reader());
-            var inStream = bufReader.reader();
-            var programMemSlice: []u8 = self.memory[PROGRAM_START..MEM_SIZE];
+        pub fn loadROM(self: *Self, dir: std.fs.Dir, filename: []const u8) !void {
+            if (build_options.exe_build_type != .web) {
+                var file: std.fs.File = try dir.openFile(filename, .{.mode = .read_only});
+                defer file.close();
+
+                var bufReader = std.io.bufferedReader(file.reader());
+                var inStream = bufReader.reader();
+                var programMemSlice: []u8 = self.memory[PROGRAM_START..MEM_SIZE];
         
-            _ = try inStream.readAll(programMemSlice);
+                _ = try inStream.readAll(programMemSlice);
 
+                self.pc = PROGRAM_START;
+            } else {
+                @compileError("Not implemented");
+            }
+        }
+
+        pub fn loadROMBytes(self: *Self, rom: []const u8) void {
+            var programMemSlice: []u8 = self.memory[PROGRAM_START..MEM_SIZE];
+            @memcpy(programMemSlice.ptr, rom.ptr, rom.len);
             self.pc = PROGRAM_START;
         }
 
         fn rand(self: *Self) u8 {
-            return self.rng.random().int(u8);
+            if (build_options.exe_build_type == .web) {
+                return @import("platforms/web/rand.zig").wasmRand();
+            } else {
+                return self.rng.random().int(u8);
+            }
         }
 
         // CLS:
@@ -123,7 +156,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             // @memset(@ptrCast([*]u8, dmem.ptr), 0, DISPLAY_MEM_SIZE / 8);
             var i: u32 = 0;
             while (i < DISPLAY_MEM_SIZE) : (i += 1) {
-                self.displayMemory[i] = 0;
+                self.displayMemory.set(i, 0);
             }
         }
     
@@ -215,63 +248,84 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // otherwise it is set to 0
         fn op_8xy4(self: *Self) void {
             if (debugops) std.debug.print("ADD x, y\n", .{});
-            var sum: u16 = @intCast(u16, self.registers[self.Vxus()]) + @intCast(u16, self.registers[self.Vyus()]);
-
-            if (sum > 255) {
-                self.registers[0xF] = 1;
-            } else {
-                self.registers[0xF] = 0;
-            }
+            // var sum: u16 = @intCast(u16, self.registers[self.Vxus()]) + @intCast(u16, self.registers[self.Vyus()]);
+            
+            // if (sum > 255) {
+            //     self.registers[0xF] = 1;
+            // } else {
+            //     self.registers[0xF] = 0;
+            // }
 
             // TODO: in if sum > 255 -> sum = sum % 255; (or sum - 255)
             //self.registers[self.Vxus()] = @intCast(u8, sum & 0xFF); //& 0xFF;
-            self.registers[self.Vxus()] +%= self.registers[self.Vyus()];
+            self.registers[0xF] = if (@addWithOverflow(u8, self.registers[self.Vxus()], self.registers[self.Vyus()], &self.registers[self.Vxus()])) 1 else 0;
+
         }
 
         // SUB: 8xy5
         fn op_8xy5(self: *Self) void {
             if (debugops) std.debug.print("SUB x, y\n", .{});
-            const _Vx = self.Vx();
-            const _Vy = self.Vy();
+            const x = self.Vxus();
+            const y = self.Vyus();
+            const _Vx = self.registers[x];
+            const _Vy = self.registers[y];
 
-            if (self.registers[_Vx] > self.registers[_Vy]) {
+            _ = if (@subWithOverflow(u8, _Vx, _Vy, &self.registers[x])) 1 else 0;
+
+            if (_Vx > _Vy) {
                 self.registers[0xF] = 1;
             } else {
                 self.registers[0xF] = 0;
             }
-
-            self.registers[_Vx] = self.registers[_Vx] -% self.registers[_Vy];
+            // self.registers[_Vx] = self.registers[_Vx] -% self.registers[_Vy];
         }
 
         // SHR: 8xy6
         // shift right (= divide by two) Vx. lsb stored in Vf
         fn op_8xy6(self: *Self) void {
             if (debugops) std.debug.print("shr x, y\n", .{});
-            self.registers[0xF] = (self.registers[self.Vxus()] & 0x1);
+            const x = self.Vxus();
+            const _Vx = self.registers[x];
 
-            self.registers[self.Vxus()] >>= 1; // /= 2
+            std.debug.print("0x{x} = {} >> = ", .{x, self.registers[x]});
+
+            self.registers[x] >>= 1; // /= 2
+            // _ = @shlWithOverflow(u8, _Vx, 1, &self.registers[self.Vxus()]);
+            // SHR with overflow
+            // const firstBit: u8 = 1;
+            // self.registers[x] = ((_Vx & firstBit) << 7) | ((_Vx & (~firstBit)) >> 1);
+            self.registers[0xF] = (_Vx & 0x1);
+
+            std.debug.print("{}\n", .{self.registers[x]});
             // TODO?: @shlWithOverflow(u8, self.registers[self.Vxus()], 1, &self.registers[self.Vxus()]);
         }
 
         // SUBN: 8xy7
         fn op_8xy7(self: *Self) void {
             if (debugops) std.debug.print("SUBN x, y\n", .{});
-            if (self.registers[self.Vyus()] > self.registers[self.Vxus()]) {
+            const x = self.Vxus();
+            const y = self.Vyus();
+            const _Vx = self.registers[x];
+            const _Vy = self.registers[y];
+
+            _ = @subWithOverflow(u8, _Vy, _Vx, &self.registers[x]);
+
+            if (_Vy > _Vx) {
                 self.registers[0xF] = 1;
             } else {
                 self.registers[0xF] = 0;
             }
-
-            self.registers[self.Vxus()] = self.registers[self.Vyus()] -% self.registers[self.Vxus()];
         }
 
         // SHL: 8xyE
         fn op_8xyE(self: *Self) void {
             if (debugops) std.debug.print("SHL x, y\n", .{});
-            // Most significant bit into reg Vf
-            self.registers[0xF] = (self.registers[self.Vxus()] & 0x80) >> 7;
+            const x = self.Vxus();
+            const _Vx = self.registers[x];
 
-            self.registers[self.Vxus()] <<= 1; // TODO: does overflow?
+            self.registers[self.Vxus()] <<= 1;
+            // Most significant bit into reg Vf
+            self.registers[0xF] = (_Vx & 0x80) >> 7;
         }
 
         // SNE: 9xy0: skip
@@ -334,7 +388,8 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
                     // const pixelMask = firstByte >> @intCast(u3, col);
                     // const spritePixel: u8 = spriteRow & pixelMask;
                     const spritePixel: u1 = @intCast(u1, (spriteRow >> @intCast(u3, col)) & 0x1);
-                    const screenPixel: *DisplayBufferType = &self.displayMemory[y * VIDEO_WIDTH + x];
+                    const bufferIndex = y * VIDEO_WIDTH + x;
+                    const screenPixel: DisplayBufferType = self.displayMemory.get(bufferIndex);
                 
                     // Take each bit of the row = 1 pixel
                     // var spritePixel: u8 = spriteRow & (firstByte >> @intCast(u3, col));
@@ -350,14 +405,16 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
 
                     if (spritePixel == 1) {
                         // Collision with screen pixel
-                        if (screenPixel.* == on) {
+                        if (screenPixel == on) {
                             // current pixel is on
-                            screenPixel.* = off; // 1 ^ 1 == 0
+                            // screenPixel.* = off; // 1 ^ 1 == 0
+                            self.displayMemory.set(bufferIndex, off);
                             // Pixel will be erased
                             self.registers[0xF] = 1;
                         } else {
                             // current pixel is off
-                            screenPixel.* = on;
+                            // screenPixel.* = on;
+                            self.displayMemory.set(bufferIndex, on);
                         }
                     }
 
@@ -375,7 +432,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
                 while (__y < height) : (__y += 1) {
                     var __x: usize = 0;
                     while (__x < 8) : (__x += 1) {
-                        std.debug.print("{}", .{self.displayMemory[((yPos + __y) % VIDEO_HEIGHT) * VIDEO_WIDTH + (xPos + __x) % VIDEO_WIDTH]});
+                        std.debug.print("{}", .{self.displayMemory.get(((yPos + __y) % VIDEO_HEIGHT) * VIDEO_WIDTH + (xPos + __x) % VIDEO_WIDTH)});
                     }
                     std.debug.print("\n", .{});
                 }
@@ -387,7 +444,8 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             if (debugops) std.debug.print("SKP x\n", .{});
             const key = self.registers[self.Vxus()];
 
-            if (self.keypad[key]) {
+            if (@enumToInt(self.keypad[key]) > 0) {
+                std.debug.print("key: {}\n", .{key});
                 // PC has been incremented in cycle, so we can increment again to skip instruction
                 self.pc += 2;
             }
@@ -398,7 +456,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             if (debugops) std.debug.print("SKNP\n", .{});
             const key = self.registers[self.Vxus()];
 
-            if (!self.keypad[key]) {
+            if (@enumToInt(self.keypad[key]) == 0) {
                 self.pc += 2;
             }
         }
@@ -416,7 +474,8 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             comptime var i = 0;
             if (
                 !(inline while (i < KEY_COUNT) : (i += 1) {
-                    if (self.keypad[i]) {
+                    if (@enumToInt(self.keypad[i]) > 0) {
+                        // TODO: wait for key release
                         self.registers[_Vx] = i;
                         break true;
                     }
@@ -479,7 +538,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             const x = self.Vx();
         
             var i: uptr = 0;
-            while (i < x) : (i += 1) {
+            while (i <= x) : (i += 1) {
                 self.memory[self.indexRegister + i] = self.registers[i];
             }
             self.indexRegister += x + 1;
@@ -491,7 +550,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             const x = self.Vx();
 
             var i: u8 = 0;
-            while (i < x) : (i += 1) {
+            while (i <= x) : (i += 1) {
                 self.registers[i] = self.memory[self.indexRegister + i];
             }
             self.indexRegister += x + 1;
