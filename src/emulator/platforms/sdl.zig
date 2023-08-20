@@ -14,6 +14,27 @@ const PlatformError = @import("../platform.zig").PlatformError;
 // TODO: bounds checking
 const KEY_UP_QUEUE_SIZE = 16;
 
+fn getKeymap() [KEY_COUNT]c_int {
+    var key_map: [KEY_COUNT]c_int = .{};
+    key_map[0x1] = sdl.Scancode.n1;
+    key_map[0x2] = sdl.Scancode.n2;
+    key_map[0x3] = sdl.Scancode.n3;
+    key_map[0xC] = sdl.Scancode.n4;
+    key_map[0x4] = sdl.Scancode.q;
+    key_map[0x5] = sdl.Scancode.w;
+    key_map[0x6] = sdl.Scancode.e;
+    key_map[0xD] = sdl.Scancode.r;
+    key_map[0x7] = sdl.Scancode.a;
+    key_map[0x8] = sdl.Scancode.s;
+    key_map[0x9] = sdl.Scancode.d;
+    key_map[0xE] = sdl.Scancode.f;
+    key_map[0xA] = sdl.Scancode.z;
+    key_map[0x0] = sdl.Scancode.x;
+    key_map[0xB] = sdl.Scancode.c;
+    key_map[0xF] = sdl.Scancode.v;
+    return key_map;
+}
+
 pub const SDLPlatform = struct {
     window: *sdl.Window,
     renderer: *sdl.Renderer,
@@ -23,24 +44,7 @@ pub const SDLPlatform = struct {
     scale: u32,
     keyUpQueue: [KEY_UP_QUEUE_SIZE]usize,
     keyUpQueueIdx: usize,
-    comptime keyMap: [KEY_COUNT]c_int = .{
-        sdl.Scancode.n1,
-        sdl.Scancode.n2,
-        sdl.Scancode.n3,
-        sdl.Scancode.n4,
-        sdl.Scancode.q,
-        sdl.Scancode.w,
-        sdl.Scancode.e,
-        sdl.Scancode.r,
-        sdl.Scancode.a,
-        sdl.Scancode.s,
-        sdl.Scancode.d,
-        sdl.Scancode.f,
-        sdl.Scancode.z,
-        sdl.Scancode.x,
-        sdl.Scancode.c,
-        sdl.Scancode.v,
-    },
+    comptime keyMap: [KEY_COUNT]c_int = getKeymap(),
 
     pub fn init(_: std.mem.Allocator, videoScale: u32, _: *void) !SDLPlatform {
         try sdl.init(.initVideo);

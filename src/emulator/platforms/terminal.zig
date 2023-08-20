@@ -24,6 +24,7 @@ const KeyboardLayout = enum(u8) {
     AZERTY,
 };
 
+// TODO: disable keyboard output
 pub const TerminalPlatform = struct {
     stdout: std.io.BufferedWriter(4096, @TypeOf(std.io.getStdOut().writer())),
     terminal: Term,
@@ -33,9 +34,11 @@ pub const TerminalPlatform = struct {
     const Self = @This();
 
     pub fn init(_: std.mem.Allocator, _: u32, opts: *void) !Self {
-        const kbl_ptr: *align(@alignOf(KeyboardLayout)) void = @alignCast(@alignOf(KeyboardLayout), opts);
-        const kbl: KeyboardLayout = @ptrCast(*KeyboardLayout, kbl_ptr).*;
-        // const kbl: KeyboardLayout = @ptrCast(*KeyboardLayout, opts).*;
+        // const kbl_ptr: *align(@alignOf(KeyboardLayout)) void = @alignCast(@alignOf(KeyboardLayout), opts);
+        // const kbl: KeyboardLayout = @ptrCast(*KeyboardLayout, kbl_ptr).*;
+        // TODO:
+        _ = opts;
+        const kbl = .AZERTY;
 
         //o: KeyboardLayout) !Self {
         var writer = stdout.writer();
@@ -69,7 +72,8 @@ pub const TerminalPlatform = struct {
         }
 
         inline for (self.kbMap) |char, i| {
-            if (keypad[i] == .pressedThisFrame) keypad[i] = .unpressed;
+            // Release key
+            if (keypad[i] != .unpressed) keypad[i] = .unpressed;
 
             if (char == buf[0]) {
                 keypad[i] = .pressedThisFrame;
@@ -85,33 +89,49 @@ pub const TerminalPlatform = struct {
     }
 
     fn inputLayout(kbLayout: KeyboardLayout) [4 * 4]u8 {
-        return switch (kbLayout) {
+        var key_map: [4 * 4]u8 = .{};
+        const keys = switch (kbLayout) {
             // zig fmt: off
-            .QWERTY => .{
+            .QWERTY => [4*4]u8{
                 '1', '2', '3', '4',
                 'q', 'w', 'e', 'r',
                 'a', 's', 'd', 'f',
                 'z', 'x', 'c', 'v',
             },
             // zig fmt: off
-            .AZERTY => .{
+            .AZERTY => [4*4]u8{
                 '&', 'é', '"', '\'',
                 'a', 'z', 'e', 'r',
                 'q', 's', 'd', 'f',
                 'w', 'x', 'c', 'v',
             },
         };
+        key_map[0x1] = keys[0];
+        key_map[0x2] = keys[1];
+        key_map[0x3] = keys[2];
+        key_map[0xC] = keys[3];
+        key_map[0x4] = keys[4];
+        key_map[0x5] = keys[5];
+        key_map[0x6] = keys[6];
+        key_map[0xD] = keys[7];
+        key_map[0x7] = keys[8];
+        key_map[0x7] = keys[9];
+        key_map[0x9] = keys[10];
+        key_map[0xE] = keys[11];
+        key_map[0xA] = keys[12];
+        key_map[0x0] = keys[13];
+        key_map[0xB] = keys[14];
+        key_map[0xF] = keys[15];
+        return key_map;
     }
 
     pub fn renderBuffer(self: *Self, buffer: *std.PackedIntArray(DisplayBufferType, DISPLAY_MEM_SIZE)) PlatformError!void {
-        // try ansi.resetCursor(&self.stdout);
         var x: i32 = 0;
         var y: i32 = 0;
         var i: usize = 0;
         // for (buffer) |pixel| {
         while (i < buffer.len) {
             const pixel: DisplayBufferType = buffer.*.get(i);
-            // std.debug.print("Pixel: ({}, {}) = {}\n", .{x, y, pixel});
             if (x == 0) {
                 try ansi.setCursor(&self.stdout, y, x, &self.fmtBuf); // catch return PlatformError.RenderingFailed;
             }
@@ -136,6 +156,5 @@ pub const TerminalPlatform = struct {
             i += 1;
         }
         try self.stdout.flush();
-        // std.debug.print("render complete {any}\n", .{buffer});
     }
 };
