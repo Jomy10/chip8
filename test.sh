@@ -1,4 +1,14 @@
-zig build -Dexe-type=cli -Dplatform=$1 || exit
+if [[ $1 == "" ]]; then
+  echo "No platform specified"
+  exit 1
+fi
+
+ARGS=""
+if [[ $1 == "terminal" ]]; then
+  ARGS="${ARGS} -Dterminal-full-pixel=true"
+fi
+
+zig build -Dexe-type=cli -Dplatform=$1 $ARGS || exit
 
 INFO='\033[0;36m'
 CLEAR='\033[0m'

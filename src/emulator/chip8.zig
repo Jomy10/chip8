@@ -17,11 +17,6 @@ const DISPLAY_MEM_SIZE = constants.DISPLAY_MEM_SIZE;
 const SPRITE_WIDTH = constants.SPRITE_WIDTH;
 const KEY_COUNT = constants.KEY_COUNT;
 
-// const timestamp = if (build_options.exe_build_type == .web)
-//     @import("platforms/web/timer.zig").timestamp
-// else
-//     std.time.timestamp;
-
 pub const KeyPress = enum(u2) {
     pressedThisFrame = 2,
     pressedPrevFrame = 1,
@@ -56,7 +51,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         soundTimer: u8,
         // 16 input keys 0 through F
         keypad: [KEY_COUNT]KeyPress,
-        displayMemory: std.PackedIntArray(DisplayBufferType, DISPLAY_MEM_SIZE), //[DISPLAY_MEM_SIZE]DisplayBufferType,
+        displayMemory: std.PackedIntArray(DisplayBufferType, DISPLAY_MEM_SIZE),
 
         // Emulater specific
         rng: if (build_options.exe_build_type == .web) void else std.rand.DefaultPrng,
@@ -87,11 +82,8 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
                 .drawFlag = true,
             };
 
-            // (@ptrCast([*]u8, chip8.memory) + @intCast(usize, FONTSET_START)) = .{
             var memSlice: []u8 = chip8.memory[FONTSET_START..FONTSET_START+FONTSET_SIZE];
 
-       
-            // (&chip8.memory[0..].ptr + @intCast(usize, FONTSET_START)) = .{
             comptime var i = 0;
             const font: [FONTSET_SIZE]u8 = .{
                 0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -152,8 +144,8 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // CLS:
         fn op_00E0(self: *Self) void {
             if (debugops) std.debug.print("CLS\n", .{});
-            // const dmem: []u1 = self.displayMemory[0..DISPLAY_MEM_SIZE];
-            // @memset(@ptrCast([*]u8, dmem.ptr), 0, DISPLAY_MEM_SIZE / 8);
+            
+
             var i: u32 = 0;
             while (i < DISPLAY_MEM_SIZE) : (i += 1) {
                 self.displayMemory.set(i, 0);
@@ -163,6 +155,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // RET: 
         fn op_00EE(self: *Self) void {
             if (debugops) std.debug.print("RET\n", .{});
+            
             self.sp -= 1;
             self.pc = self.stack[self.sp];
         }
@@ -170,12 +163,14 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // JMP: jump to address nnn
         fn op_1nnn(self: *Self) void {
             if (debugops) std.debug.print("Jump to address 0x{x}\n", .{self.nnn()});
+            
             self.pc = self.nnn();
         }
 
         // CALL: call the subroutine at nnn
         fn op_2nnn(self: *Self) void {
             if (debugops) std.debug.print("CALL nnn: address = {}\n", .{self.nnn()});
+            
             // Put current pc on the stack
             self.stack[self.sp] = self.pc;
             self.sp += 1;
@@ -187,6 +182,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // SE: skip next instruction if Vx = kk
         fn op_3xkk(self: *Self) void {
             if (debugops) std.debug.print("SE x, kk: Vx = {}, kk = {}\n", .{self.registers[self.Vxus()], self.kk()});
+            
             if (self.registers[self.Vxus()] == self.kk()) {
                 self.pc += 2;
             }
@@ -195,6 +191,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // SNE: skip next instruction if Vx != kk
         fn op_4xkk(self: *Self) void {
             if (debugops) std.debug.print("SNE x, kk: Vx = {}, kk = {}\n", .{self.registers[self.Vxus()], self.kk()});
+
             if (self.registers[self.Vxus()] != self.kk()) {
                 self.pc += 2;
             }
@@ -203,6 +200,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // SE: 5xy0
         fn op_5xy0(self: *Self) void {
             if (debugops) std.debug.print("SE x, y: Vx = {}, Vy = {}\n", .{self.registers[self.Vxus()], self.registers[self.Vyus()]});
+
             if (self.registers[self.Vxus()] == self.registers[self.Vyus()]) {
                 self.pc += 2;
             }
@@ -211,36 +209,42 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // LD: 6xkk: set Vx = kk
         fn op_6xkk(self: *Self) void {
             if (debugops) std.debug.print("Set V[0x{x}] to 0x{x}\n", .{self.Vxus(), self.kk()});
+
             self.registers[self.Vxus()] = self.kk();
         }
 
         // ADD: 7xkk: set Vx = Vx + kk
         fn op_7xkk(self: *Self) void {
             if (debugops) std.debug.print("ADD x, kk: Vx = {}, kk = {}\n", .{self.registers[self.Vxus()], self.kk()});
+
             self.registers[self.Vxus()] +%= self.kk();
         }
 
         // LD: 8xy0: Vx = Vy
         fn op_8xy0(self: *Self) void {
             if (debugops) std.debug.print("LD x, y: Vx = {}, Vy = {}\n", .{self.registers[self.Vxus()], self.registers[self.Vyus()]});
+
             self.registers[self.Vxus()] = self.registers[self.Vyus()];
         }
 
         // OR: 8xy1
         fn op_8xy1(self: *Self) void {
             if (debugops) std.debug.print("OR x, y: Vx = {}, Vy = {}\n", .{self.registers[self.Vxus()], self.registers[self.Vyus()]});
+
             self.registers[self.Vxus()] |= self.registers[self.Vyus()];
         }
 
         // AND: 8xy2
         fn op_8xy2(self: *Self) void {
             if (debugops) std.debug.print("AND x, y\n", .{});
+
             self.registers[self.Vxus()] &= self.registers[self.Vyus()];
         }
 
         // XOR: 8xy3
         fn op_8xy3(self: *Self) void {
             if (debugops) std.debug.print("XOR x, y\n", .{});
+
             self.registers[self.Vxus()] ^= self.registers[self.Vyus()];
         }
 
@@ -248,16 +252,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // otherwise it is set to 0
         fn op_8xy4(self: *Self) void {
             if (debugops) std.debug.print("ADD x, y\n", .{});
-            // var sum: u16 = @intCast(u16, self.registers[self.Vxus()]) + @intCast(u16, self.registers[self.Vyus()]);
             
-            // if (sum > 255) {
-            //     self.registers[0xF] = 1;
-            // } else {
-            //     self.registers[0xF] = 0;
-            // }
-
-            // TODO: in if sum > 255 -> sum = sum % 255; (or sum - 255)
-            //self.registers[self.Vxus()] = @intCast(u8, sum & 0xFF); //& 0xFF;
             self.registers[0xF] = if (@addWithOverflow(u8, self.registers[self.Vxus()], self.registers[self.Vyus()], &self.registers[self.Vxus()])) 1 else 0;
 
         }
@@ -265,6 +260,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // SUB: 8xy5
         fn op_8xy5(self: *Self) void {
             if (debugops) std.debug.print("SUB x, y\n", .{});
+
             const x = self.Vxus();
             const y = self.Vyus();
             const _Vx = self.registers[x];
@@ -277,32 +273,24 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             } else {
                 self.registers[0xF] = 0;
             }
-            // self.registers[_Vx] = self.registers[_Vx] -% self.registers[_Vy];
         }
 
         // SHR: 8xy6
         // shift right (= divide by two) Vx. lsb stored in Vf
         fn op_8xy6(self: *Self) void {
             if (debugops) std.debug.print("shr x, y\n", .{});
+
             const x = self.Vxus();
             const _Vx = self.registers[x];
 
-            std.debug.print("0x{x} = {} >> = ", .{x, self.registers[x]});
-
             self.registers[x] >>= 1; // /= 2
-            // _ = @shlWithOverflow(u8, _Vx, 1, &self.registers[self.Vxus()]);
-            // SHR with overflow
-            // const firstBit: u8 = 1;
-            // self.registers[x] = ((_Vx & firstBit) << 7) | ((_Vx & (~firstBit)) >> 1);
             self.registers[0xF] = (_Vx & 0x1);
-
-            std.debug.print("{}\n", .{self.registers[x]});
-            // TODO?: @shlWithOverflow(u8, self.registers[self.Vxus()], 1, &self.registers[self.Vxus()]);
         }
 
         // SUBN: 8xy7
         fn op_8xy7(self: *Self) void {
             if (debugops) std.debug.print("SUBN x, y\n", .{});
+
             const x = self.Vxus();
             const y = self.Vyus();
             const _Vx = self.registers[x];
@@ -320,6 +308,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // SHL: 8xyE
         fn op_8xyE(self: *Self) void {
             if (debugops) std.debug.print("SHL x, y\n", .{});
+
             const x = self.Vxus();
             const _Vx = self.registers[x];
 
@@ -331,6 +320,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // SNE: 9xy0: skip
         fn op_9xy0(self: *Self) void {
             if (debugops) std.debug.print("SNE x, y\n", .{});
+
             if (self.registers[self.Vxus()] != self.registers[self.Vyus()]) {
                 self.pc += 2;
             }
@@ -340,18 +330,21 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // set I = nnn
         fn op_Annn(self: *Self) void {
             if (debugops) std.debug.print("Set I to 0x{x}\n", .{self.nnn()});
+
             self.indexRegister = self.nnn();
         }
 
         /// JMP: jump to location nnn + V0
         fn op_Bnnn(self: *Self) void {
             if (debugops) std.debug.print("JP nnn: address = {}, jump location = {}\n", .{self.nnn(), self.nnn() + self.registers[0]});
+
             self.pc = self.registers[0] + self.nnn();
         }
 
         // RND: set Vx = random byte AND kk
         fn op_Cxkk(self: *Self) void {
             if (debugops) std.debug.print("RND: mask = {}\n", .{self.kk()});
+
             self.registers[self.Vxus()] = self.rand() & self.kk();
         }
     
@@ -371,7 +364,6 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
 
             self.registers[0xF] = 0;
 
-            // const firstByte: u8 = 0b10000000;
             // row = byte in the byte array we read (n bytes)
             var row: u8 = 0; // 0 to max 15
             // bit in the byte row
@@ -384,44 +376,23 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
                 col = 0;
                 while (col < SPRITE_WIDTH) : (col += 1) {
                     const x: usize = (@intCast(usize, xPos) + @intCast(usize, 7 - col)) % VIDEO_WIDTH;
-                    // const screenPixel: *u1 = &self.displayMemory[y + x];
-                    // const pixelMask = firstByte >> @intCast(u3, col);
-                    // const spritePixel: u8 = spriteRow & pixelMask;
+                    // Take each bit of the row = 1 pixel
                     const spritePixel: u1 = @intCast(u1, (spriteRow >> @intCast(u3, col)) & 0x1);
                     const bufferIndex = y * VIDEO_WIDTH + x;
                     const screenPixel: DisplayBufferType = self.displayMemory.get(bufferIndex);
                 
-                    // Take each bit of the row = 1 pixel
-                    // var spritePixel: u8 = spriteRow & (firstByte >> @intCast(u3, col));
-                    // var screenPixel: *u1 = &self.displayMemory[@intCast(usize, yPos + row) * VIDEO_WIDTH + (xPos + col)];
-
-                    // std.debug.print("set ({}, {}) = {}\n", .{row, col, spritePixel});
-
-                    // if (spritePixel == 1 and screenPixel.* == 1) {
-                    //     self.registers[0xF] = 1;
-                    // }
-
-                    // screenPixel.* = screenPixel.* ^ spritePixel;
-
                     if (spritePixel == 1) {
                         // Collision with screen pixel
                         if (screenPixel == on) {
                             // current pixel is on
-                            // screenPixel.* = off; // 1 ^ 1 == 0
                             self.displayMemory.set(bufferIndex, off);
                             // Pixel will be erased
                             self.registers[0xF] = 1;
                         } else {
                             // current pixel is off
-                            // screenPixel.* = on;
                             self.displayMemory.set(bufferIndex, on);
                         }
                     }
-
-                    //     // XOR with screen pixel
-                    // } // spritePixel is 0, so screenPixel stays the same
-
-                    // std.debug.print("col = {} > {}\n", .{col, SPRITE_WIDTH});
                 }
             }
 
@@ -442,10 +413,10 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         /// SKP: skip next instruction if key with the value of Vx is pressed
         fn op_Ex9E(self: *Self) void {
             if (debugops) std.debug.print("SKP x\n", .{});
+
             const key = self.registers[self.Vxus()];
 
             if (@enumToInt(self.keypad[key]) > 0) {
-                std.debug.print("key: {}\n", .{key});
                 // PC has been incremented in cycle, so we can increment again to skip instruction
                 self.pc += 2;
             }
@@ -454,6 +425,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // SKNP: skip if not equal
         fn op_ExA1(self: *Self) void {
             if (debugops) std.debug.print("SKNP\n", .{});
+
             const key = self.registers[self.Vxus()];
 
             if (@enumToInt(self.keypad[key]) == 0) {
@@ -464,12 +436,14 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         /// LD:
         fn op_Fx07(self: *Self) void {
             if (debugops) std.debug.print("LD x: delay timer = {}\n", .{self.delayTimer});
+
             self.registers[self.Vxus()] = self.delayTimer;
         }
 
         // LD: wait for a keypress and store the value in Vx
         fn op_Fx0A(self: *Self) void {
             if (debugops) std.debug.print("LD x: waiting for keypress\n", .{});
+
             const _Vx = self.Vx();
             comptime var i = 0;
             if (
@@ -488,24 +462,28 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         // LD:
         fn op_Fx15(self: *Self) void {
             if (debugops) std.debug.print("LD: into delay timer\n", .{});
+
             self.delayTimer = self.registers[self.Vxus()];
         }
 
         // LD:
         fn op_Fx18(self: *Self) void {
             if (debugops) std.debug.print("LD: into soundTimer\n", .{});
+
             self.soundTimer = self.registers[self.Vxus()];
         }
 
         /// ADD: Set I = I + Vx
         fn op_Fx1E(self: *Self) void {
             if (debugops) std.debug.print("ADD: I = I + Vx\n", .{});
+
             self.indexRegister += self.registers[self.Vxus()];
         }
 
         /// LD: Set I = location of sprite for digit Vx.
         fn op_Fx29(self: *Self) void {
             if (debugops) std.debug.print("LD: I = Vx\n", .{});
+
             const digit = self.registers[self.Vxus()];
         
             self.indexRegister = FONTSET_START + (5 * digit);
@@ -516,6 +494,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         /// memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
         fn op_Fx33(self: *Self) void {
             if (debugops) std.debug.print("LD: BCD rep\n", .{});
+
             var val = self.registers[self.Vxus()];
 
             self.memory[self.indexRegister + 2] = val % 10;
@@ -525,16 +504,12 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
             val /= 10;
 
             self.memory[self.indexRegister] = val % 10;
-
-        
-            // self.memory[self.indexRegister] = (self.registers[self.Vxus()] % 1000) / 100; // hundred's digit
-            // self.memory[self.indexRegister+1] = (self.registers[self.Vxus()] % 100) / 10; // ten's digit
-            // self.memory[self.indexRegister+2] = (self.registers[self.Vxus()] % 10); // one's digit
         }
 
         /// LD: Store registers V0 through Vx in memory starting at location I
         fn op_Fx55(self: *Self) void {
             if (debugops) std.debug.print("LD\n", .{});
+
             const x = self.Vx();
         
             var i: uptr = 0;
@@ -547,6 +522,7 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         /// LD: Read registers V0 through Vx from memory starting at location I
         fn op_Fx65(self: *Self) void {
             if (debugops) std.debug.print("LD\n", .{});
+
             const x = self.Vx();
 
             var i: u8 = 0;
@@ -557,7 +533,6 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
         }
 
         fn execOp(self: *Self) void {
-            // std.debug.print("0x{X} -> 0x{X}\n", self.opcode, self.opcode & 0xF000);
             switch (self.opcode & 0xF000) {
                 // Unique opcodes
                 0x1000 => self.op_1nnn(),
@@ -627,8 +602,9 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
 
         pub fn cycle(self: *Self) void {
             self.opcode = (@intCast(u16, self.memory[self.pc]) << 8) | (self.memory[self.pc + 1]);
+
             if (debugops) std.debug.print("PC: 0x{x} Op: 0x{x}\n", .{self.pc, self.opcode});
-            // std.debug.print("0x{X}\n", .{self.opcode});
+
             self.pc += 2;
 
             self.execOp();
