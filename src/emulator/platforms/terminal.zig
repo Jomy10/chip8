@@ -1,6 +1,7 @@
 const std = @import("std");
 const stdout = std.io.getStdOut();
 
+const DisplayBufferType = @import("../platform.zig").DisplayBufferType;
 const PlatformError = @import("../platform.zig").PlatformError;
 
 const ansi = @import("terminal/ansi.zig");
@@ -97,11 +98,14 @@ pub const TerminalPlatform = struct {
         };
     }
 
-    pub fn renderBuffer(self: *Self, buffer: *[DISPLAY_MEM_SIZE]u1) PlatformError!void {
+    pub fn renderBuffer(self: *Self, buffer: *std.PackedIntArray(DisplayBufferType, DISPLAY_MEM_SIZE)) PlatformError!void {
         // try ansi.resetCursor(&self.stdout);
         var x: i32 = 0;
         var y: i32 = 0;
-        for (buffer) |pixel| {
+        var i: usize = 0;
+        // for (buffer) |pixel| {
+        while (i < buffer.len) {
+            const pixel: DisplayBufferType = buffer.*.get(i);
             // std.debug.print("Pixel: ({}, {}) = {}\n", .{x, y, pixel});
             if (x == 0) {
                 try ansi.setCursor(&self.stdout, y, x, &self.fmtBuf); // catch return PlatformError.RenderingFailed;
