@@ -1,17 +1,26 @@
 const std = @import("std");
 const fs = std.fs;
-const time = std.time;
+
+const build_options = @import("build_options");
+//const time = std.time;
 
 const CHIP8 = @import("chip8.zig").CHIP8;
 const Platform = @import("platform.zig").Platform;
 
 pub fn Emulator(comptime RenderType: type, comptime CHIP8Type: type, comptime DisplayBufferType: type) type {
+    comptime var Timer: type = undefined;
+    comptime if (build_options.exe_build_type == .web) {
+        Timer = void; // @import("platforms/web/timer.zig").WebTimer;
+    } else {
+        Timer = std.time.Timer;
+    };
+
     return struct {
         chip8: CHIP8Type,
         platform: Platform(RenderType, DisplayBufferType),
         /// The frame time in nanoseconds
         cycleDelay: u32,
-        timer: time.Timer,
+        timer: Timer,
 
         const Self = @This();
 
@@ -20,33 +29,38 @@ pub fn Emulator(comptime RenderType: type, comptime CHIP8Type: type, comptime Di
                 .chip8 = chip8,
                 .platform = platform,
                 .cycleDelay = @floatToInt(u32, (1.0 / @intToFloat(f64, cycleDelay)) * 1_000_000_000), // *1_000_000_000: s to ns
-                .timer = try time.Timer.start(),
+                // .timer = try Timer.start(),
+                .timer = undefined,
             };
+            if (build_options.exe_build_type != .web) {
+                emulator.timer = try Timer.start();
+            }
 
-            std.debug.print("{}\n", .{emulator.cycleDelay});
+            // std.debug.print("{}\n", .{emulator.cycleDelay});
 
             return emulator;
         }
 
         pub fn run(self: *Self) !void {
-            self.timer.reset();
+            if (build_options.exe_build_type != .web) {
+                self.timer.reset();
 
-            var quit: bool = false;
+                var quit: bool = false;
 
-            std.debug.print("running\n", .{});
+                // std.debug.print("running\n", .{});
 
-            while (!quit) {
-                quit = try self.platform.handleInput(self.platform.platform, &self.chip8.keypad);
-                const dt: u64 = self.timer.read(); // / 1_000_000; // in nanoseconds to millis
+                while (!quit) {
+                    const dt: u64 = self.timer.read(); // / 1_000_000; // in nanoseconds to millis
 
-                if (dt >= self.cycleDelay) {
-                    // std.debug.print("{}\n", .{self.cycleDelay});
-                    self.timer.reset();
+                    if (dt >= self.cycleDelay) {
+                        self.timer.reset();
+                        quit = try self.platform.handleInput(self.platform.platform, &self.chip8.keypad);
 
-                    self.chip8.cycle();
-                    if (self.chip8.drawFlag) {
-                        try self.platform.renderBuffer(self.platform.platform, &self.chip8.displayMemory);
-                        self.chip8.drawFlag = false;
+                        self.chip8.cycle();
+                        if (self.chip8.drawFlag) {
+                            try self.platform.renderBuffer(self.platform.platform, &self.chip8.displayMemory);
+                            self.chip8.drawFlag = false;
+                        }
                     }
                 }
             }
@@ -54,6 +68,10 @@ pub fn Emulator(comptime RenderType: type, comptime CHIP8Type: type, comptime Di
 
         pub fn loadROM(self: *Self, dir: fs.Dir, filename: []const u8) !void {
             try self.chip8.loadROM(dir, filename);
+        }
+
+        pub fn loadROMBytes(self: *Self, rom: []const u8) void {
+            self.chip8.loadROMBytes(rom);
         }
     };
 }

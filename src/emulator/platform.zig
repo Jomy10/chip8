@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const KeyPress = @import("chip8.zig").KeyPress;
 const constants = @import("constants.zig");
 const DISPLAY_MEM_SIZE = constants.DISPLAY_MEM_SIZE;
 
@@ -15,15 +16,15 @@ SDLError };
 pub fn Platform(comptime T: type, comptime _DisplayBufferType: type) type {
     return struct {
         platform: *T,
-        handleInput: *const fn (*T, []bool) PlatformError!bool,
-        renderBuffer: *const fn (*T, *[DISPLAY_MEM_SIZE]_DisplayBufferType) PlatformError!void,
+        handleInput: *const fn (*T, []KeyPress) PlatformError!bool,
+        renderBuffer: *const fn (*T, *std.PackedIntArray(_DisplayBufferType, DISPLAY_MEM_SIZE)) PlatformError!void,
 
         const Self = @This();
 
         pub fn init(
             platform: *T,
-            handleInput: *const fn (*T, []bool) PlatformError!bool,
-            renderBuffer: *const fn (*T, *[DISPLAY_MEM_SIZE]_DisplayBufferType) PlatformError!void,
+            handleInput: *const fn (*T, []KeyPress) PlatformError!bool,
+            renderBuffer: *const fn (*T, *std.PackedIntArray(_DisplayBufferType, DISPLAY_MEM_SIZE)) PlatformError!void,
         ) !Self {
             // zig fmt: off
             return Self {
@@ -40,16 +41,19 @@ pub fn Platform(comptime T: type, comptime _DisplayBufferType: type) type {
 //===============
 
 const build_options = @import("build_options");
-const opt_platform: ?[]const u8 = build_options.platform;
+// const opt_platform: ?[]const u8 = build_options.platform;
 
-const PlatformTypeE = enum {
-    terminal,
-    testPlatform,
-    sdl
-};
+const PlatformTypeE = @TypeOf(build_options.platform);
+//  enum {
+//     terminal,
+//     testPlatform,
+//     sdl,
+//     htmlCanvas
+// };
 
 fn platformType() PlatformTypeE {
-    comptime return std.meta.stringToEnum(PlatformTypeE, opt_platform.?) orelse @compileError("Unknown platform specified: '" ++ opt_platform.? ++ "'");
+    // comptime return std.meta.stringToEnum(PlatformTypeE, opt_platform.?) orelse @compileError("Unknown platform specified: '" ++ opt_platform.? ++ "'");
+    comptime return build_options.platform;
 }
 
 fn getPlatformType() type {
@@ -57,6 +61,7 @@ fn getPlatformType() type {
         .terminal => @import("platforms/terminal.zig").TerminalPlatform,
         .testPlatform => @import("platforms/test_platform.zig").TestPlatform,
         .sdl => @import("platforms/sdl.zig").SDLPlatform,
+        .htmlCanvas => @import("platforms/htmlcanvas.zig").HTMLCanvasPlatform,
     };
 }
 
@@ -65,6 +70,7 @@ fn getPlatformOptType() type {
         .terminal => u8,
         .testPlatform => void,
         .sdl => void,
+        .htmlCanvas => void,
     };
 }
 
@@ -77,19 +83,19 @@ pub fn getPlatformOptions(opts: *void) void {
             const kbl_ptr: *u8 = @ptrCast(*u8, aligned_ptr);
             kbl_ptr.* = 0;
         },
-        .testPlatform, .sdl => {}, 
+        .testPlatform, .sdl, .htmlCanvas => {}, 
     }
 }
 
 pub const DisplayBufferType: type = switch (platformType()) {
-    .terminal, .testPlatform => u1,
+    .terminal, .testPlatform, .htmlCanvas => u1,
     .sdl => u16,
 };
 
 pub const DISPLAY_BUFFER_ON: DisplayBufferType = switch (platformType()) {
-    .terminal, .testPlatform, .sdl => std.math.maxInt(DisplayBufferType),
+    .terminal, .testPlatform, .sdl, .htmlCanvas => std.math.maxInt(DisplayBufferType),
 };
 
 pub const DISPLAY_BUFFER_OFF: DisplayBufferType = switch (platformType()) {
-    .terminal, .testPlatform, .sdl => 0
+    .terminal, .testPlatform, .sdl, .htmlCanvas => 0
 };
