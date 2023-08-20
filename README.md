@@ -48,6 +48,11 @@ TODO
 
 ### Adding a new platform
 
+## Roadmap
+
+- Add more platforms
+- Migrate to Zig v11 once it is avaiable on Homebrew
+
 ## License
 
 Licensed under the LGPLv3

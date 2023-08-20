@@ -108,8 +108,51 @@ pub const EventType = enum(c_int) {
     keyUp = sdl.SDL_KEYUP,
 };
 
-pub const KeySym = enum(c_int) {
-    esc = sdl.SDLK_ESCAPE,
+// pub const KeySym = enum(c_int) {
+//     esc = sdl.SDLK_ESCAPE,
+//     n1 = sdl.SDLK_1,
+//     q = sdl.SDLK_q,
+// };
+
+pub const KeySym = struct {
+    pub const esc: c_int = sdl.SDLK_ESCAPE;
+    pub const n1: c_int = sdl.SDLK_1;
+    pub const n2: c_int = sdl.SDLK_2;
+    pub const n3: c_int = sdl.SDLK_3;
+    pub const n4: c_int = sdl.SDLK_4;
+    pub const q: c_int = sdl.SDLK_q;
+    pub const w: c_int = sdl.SDLK_w;
+    pub const e: c_int = sdl.SDLK_e;
+    pub const r: c_int = sdl.SDLK_r;
+    pub const a: c_int = sdl.SDLK_a;
+    pub const s: c_int = sdl.SDLK_s;
+    pub const d: c_int = sdl.SDLK_d;
+    pub const f: c_int = sdl.SDLK_f;
+    pub const z: c_int = sdl.SDLK_z;
+    pub const x: c_int = sdl.SDLK_x;
+    pub const c: c_int = sdl.SDLK_c;
+    pub const v: c_int = sdl.SDLK_v;
+};
+
+// zig fmt: off
+pub const Scancode = struct {
+    pub const esc: c_int = sdl.SDL_SCANCODE_ESCAPE;
+    pub const n1: c_int = sdl.SDL_SCANCODE_1;
+    pub const n2: c_int = sdl.SDL_SCANCODE_2;
+    pub const n3: c_int = sdl.SDL_SCANCODE_3;
+    pub const n4: c_int = sdl.SDL_SCANCODE_4;
+    pub const q: c_int = sdl.SDL_SCANCODE_Q;
+    pub const w: c_int = sdl.SDL_SCANCODE_W;
+    pub const e: c_int = sdl.SDL_SCANCODE_E;
+    pub const r: c_int = sdl.SDL_SCANCODE_R;
+    pub const a: c_int = sdl.SDL_SCANCODE_A;
+    pub const s: c_int = sdl.SDL_SCANCODE_S;
+    pub const d: c_int = sdl.SDL_SCANCODE_D;
+    pub const f: c_int = sdl.SDL_SCANCODE_F;
+    pub const z: c_int = sdl.SDL_SCANCODE_Z;
+    pub const x: c_int = sdl.SDL_SCANCODE_X;
+    pub const c: c_int = sdl.SDL_SCANCODE_C;
+    pub const v: c_int = sdl.SDL_SCANCODE_V;
 };
 
 // Deinit //
