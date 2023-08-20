@@ -1,6 +1,7 @@
 const std = @import("std");
 const stdout = std.io.getStdOut();
 
+const KeyPress = @import("../chip8.zig").KeyPress;
 const DisplayBufferType = @import("../platform.zig").DisplayBufferType;
 const PlatformError = @import("../platform.zig").PlatformError;
 
@@ -13,6 +14,8 @@ const constants = @import("../constants.zig");
 const VIDEO_WIDTH = constants.VIDEO_WIDTH;
 const VIDEO_HEIGHT = constants.VIDEO_HEIGHT;
 const DISPLAY_MEM_SIZE = constants.DISPLAY_MEM_SIZE;
+
+const build_options = @import("build_options");
 
 const FMT_BUF_SIZE = 5 + 2 + 2 + 3;
 
@@ -57,7 +60,7 @@ pub const TerminalPlatform = struct {
     }
 
     /// Returns true if the application should quit
-    pub fn handleInput(self: *Self, keypad: []bool) PlatformError!bool {
+    pub fn handleInput(self: *Self, keypad: []KeyPress) PlatformError!bool {
         var buf: [1]u8 = undefined;
         const bytesRead: usize = self.terminal.read(1, &buf) catch return PlatformError.ReadingInputFailed;
 
@@ -66,8 +69,10 @@ pub const TerminalPlatform = struct {
         }
 
         inline for (self.kbMap) |char, i| {
+            if (keypad[i] == .pressedThisFrame) keypad[i] = .unpressed;
+
             if (char == buf[0]) {
-                keypad[i] = true;
+                keypad[i] = .pressedThisFrame;
                 return false;
             }
         }
@@ -112,8 +117,14 @@ pub const TerminalPlatform = struct {
             }
 
             switch (pixel) {
-                0 => _ = try self.stdout.write(" "),
-                1 => _ = try self.stdout.write("#"),
+                0 => _ = if (build_options.terminal_full_pixel)
+                        try ansi.printBg(&self.stdout, .white, " ")
+                    else
+                        try self.stdout.write(" "),
+                1 => _ = if (build_options.terminal_full_pixel)
+                        try ansi.printBg(&self.stdout, .black, " ")
+                    else
+                        try self.stdout.write("#"),
             }
 
             x += 1;
@@ -121,6 +132,8 @@ pub const TerminalPlatform = struct {
                 x = 0;
                 y += 1;
             }
+
+            i += 1;
         }
         try self.stdout.flush();
         // std.debug.print("render complete {any}\n", .{buffer});

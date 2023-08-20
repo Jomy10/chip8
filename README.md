@@ -11,7 +11,6 @@ These are the currently supported platforms and the platforms that are planned:
 - [ ] Metal
 - [ ] OpenGL
 - [ ] WebGPU
-- [ ] WebGL
 - [ ] HTMLCanvas (WIP)
 
 ## Building

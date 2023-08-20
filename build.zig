@@ -37,6 +37,7 @@ pub fn build(b: *std.build.Builder) !void {
     lib_build_options.addOption(bool, "testplatformchars", b.option(bool, "test-platform-chars", "print characaters on the test platform instead of 1's and 0's") orelse false);
     lib_build_options.addOption(PlatformType, "platform", platform);
     lib_build_options.addOption(ExeBuildType, "exe_build_type", exe_to_build);
+    lib_build_options.addOption(bool, "terminal_full_pixel", b.option(bool, "terminal-full-pixel", "Color the whole pixel in the terminal platform") orelse false);
 
     const cli_build_options = b.addOptions();
 
