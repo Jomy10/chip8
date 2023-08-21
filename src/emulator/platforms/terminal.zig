@@ -40,10 +40,8 @@ pub const TerminalPlatform = struct {
         _ = opts;
         const kbl = .AZERTY;
 
-        //o: KeyboardLayout) !Self {
         var writer = stdout.writer();
         var bufferedWriter = std.io.bufferedWriter(writer);
-        // var buf: [FMT_BUF_SIZE]u8 = undefined;
         var t = Self{
             .stdout = bufferedWriter,
             .terminal = try Term.uncook(writer, .{
@@ -54,7 +52,6 @@ pub const TerminalPlatform = struct {
             .kbMap = Self.inputLayout(kbl),
             .fmtBuf = undefined,
         };
-        // t.fmtBuf = t.__f[0..FMT_BUF_SIZE];
         return t;
     }
 
@@ -129,7 +126,6 @@ pub const TerminalPlatform = struct {
         var x: i32 = 0;
         var y: i32 = 0;
         var i: usize = 0;
-        // for (buffer) |pixel| {
         while (i < buffer.len) {
             const pixel: DisplayBufferType = buffer.*.get(i);
             if (x == 0) {

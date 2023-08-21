@@ -2,7 +2,6 @@ const std = @import("std");
 const fs = std.fs;
 
 const build_options = @import("build_options");
-//const time = std.time;
 
 const CHIP8 = @import("chip8.zig").CHIP8;
 const Platform = @import("platform.zig").Platform;
@@ -29,14 +28,11 @@ pub fn Emulator(comptime RenderType: type, comptime CHIP8Type: type, comptime Di
                 .chip8 = chip8,
                 .platform = platform,
                 .cycleDelay = @floatToInt(u32, (1.0 / @intToFloat(f64, cycleDelay)) * 1_000_000_000), // *1_000_000_000: s to ns
-                // .timer = try Timer.start(),
                 .timer = undefined,
             };
             if (build_options.exe_build_type != .web) {
                 emulator.timer = try Timer.start();
             }
-
-            // std.debug.print("{}\n", .{emulator.cycleDelay});
 
             return emulator;
         }
@@ -47,10 +43,8 @@ pub fn Emulator(comptime RenderType: type, comptime CHIP8Type: type, comptime Di
 
                 var quit: bool = false;
 
-                // std.debug.print("running\n", .{});
-
                 while (!quit) {
-                    const dt: u64 = self.timer.read(); // / 1_000_000; // in nanoseconds to millis
+                    const dt: u64 = self.timer.read();
 
                     if (dt >= self.cycleDelay) {
                         self.timer.reset();

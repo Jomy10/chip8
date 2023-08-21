@@ -12,11 +12,15 @@ const getPlatformOptions = chip8_pkg.platform.getPlatformOptions;
 const DisplayBufferType = chip8_pkg.platform.DisplayBufferType;
 const DISPLAY_BUFFER_ON = chip8_pkg.platform.DISPLAY_BUFFER_ON;
 const DISPLAY_BUFFER_OFF = chip8_pkg.platform.DISPLAY_BUFFER_OFF;
+const constants = chip8_pkg.constants;
+const DISPLAY_MEM_SIZE = constants.DISPLAY_MEM_SIZE;
+const VIDEO_WIDTH = constants.VIDEO_WIDTH;
 
 // const Timer = @import("timer.zig").WebTimer;
 
 extern fn wasmlog(?[*]const u8, usize) void;
 extern fn wasmlogerr(?[*]const u8, usize) void;
+extern fn setPixel(state: u32, x: u32, y: u32) void;
 
 fn log(msg: []const u8) void {
     wasmlog(msg.ptr, msg.len);
@@ -56,6 +60,29 @@ export fn alloc(bytes: u32) ?[*]const u8 {
     return mem.ptr;
 }
 
+export fn render(emulator: ?*EmulatorType) void {
+    const buffer: *std.PackedIntArray(DisplayBufferType, DISPLAY_MEM_SIZE) = &emulator.?.*.chip8.displayMemory;
+    var x: u32 = 0;
+    var y: u32 = 0;
+    var i: usize = 0;
+    while (i < buffer.len) {
+        const pixel: DisplayBufferType = buffer.*.get(i);
+
+        switch (pixel) {
+            0 => setPixel(0, x, y),
+            1 => setPixel(1, x, y),
+        }
+
+        x += 1;
+        if (x == VIDEO_WIDTH) {
+            x = 0;
+            y += 1;
+        }
+
+        i += 1;
+    }
+}
+
 export fn free(ptr: ?[*]const u8) void {
     const len = allocated.get(@ptrCast(*const u8, ptr.?));
     if (len == null) {
@@ -78,7 +105,14 @@ export fn initEmulator(clockSpeed: u32, displaySize: u32) ?*EmulatorType {
     };
 }
 
-export var keypadPtr: *bool = undefined;
+export fn isKeyPressed(emulator: ?*EmulatorType, keyIdx: u8) bool {
+    return (emulator.?.*.chip8.keypad[keyIdx] != .unpressed);
+}
+
+export fn getDisplayMemBufferLen(emulator: ?*EmulatorType) usize {
+    return emulator.?.*.chip8.displayMemory.len;
+}
+
 // export var drawflag: *bool = undefined;
 export fn drawFlag(emulator: ?*EmulatorType) bool {
     return emulator.?.*.chip8.drawFlag;
@@ -101,7 +135,6 @@ inline fn initEmulatorImpl(clockSpeed: u32, displaySize: u32) !*EmulatorType {
     var emulator: *EmulatorType = try allocator.create(EmulatorType);
     emulator.* = try EmulatorType.init(chip8, platform, clockSpeed);
 
-    keypadPtr = &emulator.*.chip8.keypad[0];
     displayMemPtr = &emulator.*.chip8.displayMemory.bytes[0];
 
     return emulator;
@@ -123,16 +156,6 @@ export fn loadROM(emulator: ?*EmulatorType, rom: [*]const u8, romSize: u32) u32 
     emulator.?.*.loadROMBytes(array);
     return 0;
 }
-
-// Returns 1 on error, 0 on OK
-// export fn run(emulator: ?*EmulatorType) u32 {
-//     if (emulator == null) {
-//         log("error: emulator is null");
-//         return 1;
-//     }
-//     emulator.?.*.run() catch return 1;
-//     return 0; // OK
-// }
 
 /// Returns true if the application should quit
 export fn tick(_emulator: ?*EmulatorType) void {

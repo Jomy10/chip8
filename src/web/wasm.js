@@ -1,7 +1,8 @@
 
 import {
   initScreen,
-  deinitScreen
+  deinitScreen,
+  setPixel,
 } from './render.js';
 
 export class WASM {
@@ -19,6 +20,7 @@ export class WASM {
         },
         initScreen: initScreen,
         deinitScreen: deinitScreen,
+        setPixel: setPixel,
         // renderBuffer: renderBuffer,
         // handleInput: handleInput,
       }

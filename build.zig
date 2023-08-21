@@ -23,10 +23,14 @@ pub fn build(b: *std.build.Builder) !void {
     // Build options
     //===============
 
-    const exe_to_build: ExeBuildType = std.meta.stringToEnum(ExeBuildType, b.option([]const u8, "exe-type", "The type of exe to run ('cli' or 'launcher')") orelse "cli") orelse .cli;
+    const exe_to_build_opt = b.option([]const u8, "exe-type", "The type of exe to run ('cli' or 'launcher')");
+    if (exe_to_build_opt == null) {
+        std.debug.print("Please provide a valid exe type", .{});
+        return;
+    }
+    const exe_to_build: ExeBuildType = std.meta.stringToEnum(ExeBuildType, exe_to_build_opt.?).?;
     const platform_opt = b.option([]const u8, "platform", "The platform to compile for");
     if (platform_opt == null) {
-        // @compileError("Please provide a valid platform");
         std.debug.print("Please provide a valid platform", .{});
         return;
     }

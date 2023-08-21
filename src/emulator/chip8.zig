@@ -123,7 +123,8 @@ pub fn CHIP8(comptime DisplayBufferType: type, comptime on: DisplayBufferType, c
 
                 self.pc = PROGRAM_START;
             } else {
-                @compileError("Not implemented");
+                // error: unimplemented
+                unreachable;
             }
         }
 

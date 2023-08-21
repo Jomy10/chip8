@@ -16,14 +16,16 @@ export class Emulator {
     }
 
     // properties
-    emulator.keypadPtr = emulator.wasm.functions.keypadPtr;
+    // emulator.keypadPtr = emulator.wasm.functions.keypadPtr;
     emulator.cycleDelay = (1.0 / clockSpeed) * 1_000_000_000;
     emulator.displayMemPtr = emulator.wasm.functions.displayMemPtr;
+    emulator.displayMemBufferLen = emulator.wasm.functions.getDisplayMemBufferLen(emulator.ptr);
 
     // functions
     emulator.handleInput = handleInput;
-    emulator.renderBuffer = renderBuffer;
+    // emulator.renderBuffer = renderBuffer;
     emulator.getDrawFlag = emulator.wasm.functions.drawFlag;
+    emulator.isKeyPressed = emulator.wasm.functions.isKeyPressed;
 
     emulator.loadROM = (rom) => {
       console.info("loading rom", rom);
@@ -54,8 +56,9 @@ export class Emulator {
     emulator.tick = () => {
       emulator.wasm.functions.tick(emulator.ptr);
       if (emulator.getDrawFlag(emulator.ptr) == 1) {
-        const memory = new Uint8Array(emulator.wasm.memory.buffer);
-        emulator.renderBuffer(memory, emulator.displayMemPtr);
+        // const memory = new Uint8Array(emulator.wasm.memory.buffer);
+        // emulator.renderBuffer(memory, emulator.displayMemPtr.value, emulator.displayMemBufferLen);
+        emulator.wasm.functions.render(emulator.ptr);
       }
       
       requestAnimationFrame(emulator.tick);

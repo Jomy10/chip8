@@ -6,7 +6,7 @@ Chip8 emulator written in Zig. It is written so that the renderer (= platform) c
 
 These are the currently supported platforms and the platforms that are planned:
 
-- [x] [Terminal](docs/internal/terminal.md) (in rework)
+- [x] [Terminal](docs/internal/terminal.md)
 - [x] [SDL](docs/internal/sdl.md)
 - [ ] Metal
 - [ ] OpenGL
